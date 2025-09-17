@@ -1,0 +1,21 @@
+OrderID,CustomerName,ProductName,Quantity,Price,OrderDate
+1,Alice Johnson,Laptop,1,1200.5,2025-01-10
+2,Bob Smith,Headphones,2,150.0,2025-01-12
+3,Charlie Brown,Smartphone,1,800.0,2025-01-15
+4,Diana Prince,Monitor,1,300.0,2025-01-18
+5,Ethan Hunt,Keyboard,3,90.0,2025-01-20
+6,Fiona Scott,Mouse,2,50.0,2025-01-22
+7,George Miller,Tablet,1,400.0,2025-01-25
+8,Hannah Lee,Charger,4,80.0,2025-01-27
+9,Ian Clark,USB Cable,5,25.0,2025-01-28
+10,Jane Doe,Desk Lamp,1,45.0,2025-02-01
+11,Kevin White,Backpack,1,70.0,2025-02-03
+12,Laura Green,External HDD,1,100.0,2025-02-05
+13,Mike Davis,SSD,1,150.0,2025-02-07
+14,Nina Adams,Router,1,120.0,2025-02-10
+15,Oscar Wilson,Printer,1,200.0,2025-02-12
+16,Paula Young,Camera,1,600.0,2025-02-15
+17,Quinn Taylor,Tripod,1,75.0,2025-02-18
+18,Rachel King,Microphone,2,180.0,2025-02-20
+19,Sam Evans,Speaker,1,220.0,2025-02-22
+20,Tina Brown,Projector,1,450.0,2025-02-25
