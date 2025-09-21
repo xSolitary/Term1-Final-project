@@ -26,7 +26,6 @@ void Addcsv(){
     char orderdate[12];
     printf("Enter orderID: ");
     scanf("%d",&orderid);
-
     if (orderidexist(orderid)) {
         printf("OrderID %d already exists. Not adding.\n", orderid);
         return;
@@ -43,13 +42,45 @@ void Addcsv(){
     printf("Enter orderdate: ");
     scanf("%s",orderdate);
 
+
     if (fprintf(file, "%d,%s,%s,%d,%.2f,%s\n",
                 orderid, customername, productname, quantity, price, orderdate) < 0) {
         perror("fprintf");
     }
+    printf("Add Successfully");
     fclose(file);
 
     
+
+    
+}
+void searchByOrderID() {
+    FILE *file = fopen("orders.csv", "r");
+    if (!file) { perror("open"); return; }
+    int id;
+    scanf("%d",&id);
+    char line[256];
+    // skip header
+    fgets(line, sizeof line, file);
+
+    int found = 0;
+    while (fgets(line, sizeof line, file)) {
+        int orderid, qty;
+        float price;
+        char customer[50], product[50], date[20];
+
+        if (sscanf(line, "%d,%s,%s,%d,%f,%19s",
+                   &orderid, customer, product, &qty, &price, date) == 6) {
+            if (orderid == id) {
+                printf("Found: %d, %s, %s, %d, %.2f, %s\n",
+                       orderid, customer, product, qty, price, date);
+                found = 1;
+                break;
+            }
+        }
+    }
+    if (!found) printf("OrderID %d not found.\n", id);
+    fclose(file);
 }
 void menu(){
    
@@ -69,11 +100,10 @@ void menu(){
         {
         case 1:
             Addcsv();
-            // printf("1");
-        
             break;
         case 2:
-            printf("2");
+            
+            searchByOrderID();
             break;
         case 3:
             printf("3");
