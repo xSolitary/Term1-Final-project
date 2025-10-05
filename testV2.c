@@ -4,10 +4,8 @@
 #include <ctype.h>
 #include <limits.h>
 
-/* ======================= Config ======================= */
 #define CSV_FILE "orders.csv"
 
-/* ======================= String helpers ======================= */
 
 static void chomp(char *s) {
     size_t n = strlen(s);
@@ -27,9 +25,8 @@ static int line_starts_with_digit(const char *s) {
     return *s && isdigit((unsigned char)*s);
 }
 
-/* ======================= Parsing & validation ======================= */
 
-/* CSV parse: id,customer,product,qty,price,date */
+//CSV parse id,customer,product,qty,price,date
 static int parse_csv_line(const char *line,
                           int *orderid, char *customer, char *product,
                           int *qty, float *price, char *date) {
@@ -37,11 +34,11 @@ static int parse_csv_line(const char *line,
                   orderid, customer, product, qty, price, date) == 6;
 }
 
-/* Basic YYYY-MM-DD validation */
+// Basic DD-MM-YYYY validation
 static int is_valid_date_str(const char *s) {
-    int y, m, d;
-    if (sscanf(s, "%4d-%2d-%2d", &y, &m, &d) != 3) return 0;
-    if (y < 1900 || y > 3000) return 0;
+    int d, m, y;
+    if (sscanf(s, "%2d-%2d-%4d", &d, &m, &y) != 3) return 0;
+    if (y < 1999 || y > 2025) return 0;
     if (m < 1 || m > 12) return 0;
     int mdays[] = {0,31,28,31,30,31,30,31,31,30,31,30,31};
     int leap = ( (y%4==0 && y%100!=0) || (y%400==0) );
@@ -50,7 +47,7 @@ static int is_valid_date_str(const char *s) {
     return 1;
 }
 
-/* ======================= Safe input (loops until valid) ======================= */
+/* Safe input (loops until valid)  */
 
 static void read_line(const char *prompt, char *buf, size_t cap) {
     for (;;) {
@@ -117,7 +114,7 @@ static void read_text_loop(const char *prompt, char *out, size_t cap) {
     }
 }
 
-/* optional versions for update (blank = keep) */
+//optional versions for update (blank = keep)
 static int read_optional_int(const char *prompt, int *out_value) {
     char buf[128];
     read_line(prompt, buf, sizeof buf);
@@ -145,12 +142,12 @@ static int read_optional_text(const char *prompt, char *dst, size_t cap) {
     return 1;
 }
 
-/* date with loop */
+//date with loop
 static void read_date_loop(const char *prompt, char *dst, size_t cap) {
     for (;;) {
         read_line(prompt, dst, cap);
         if (is_valid_date_str(dst)) return;
-        printf("Invalid date. Use YYYY-MM-DD and a real calendar date.\n");
+        printf("Invalid date. Use DD-MM-YYYY , 0x not allow use x instead and a real calendar date.\n");
     }
 }
 
@@ -216,19 +213,19 @@ static void Addcsv(void) {
     float price;
     char customer[50], product[50], date[20];
 
-    /* ID (unique) */
+    // unique id
     for (;;) {
         read_int_loop("Enter Order ID: ", &id, 0, 0);
         if (!orderIDExists(id)) break;
         printf("Order ID %d already exists. Try another.\n", id);
     }
 
-    /* Strings & numbers */
+    //valid data type
     read_text_loop("Customer name: ", customer, sizeof customer);
     read_text_loop("Product name: ",  product,  sizeof product);
-    read_int_loop ("Quantity (integer, >=0): ", &qty, 1, 0);
+    read_int_loop ("Quantity (>=0): ", &qty, 1, 0);
     read_float_loop("Price (>=0): ", &price, 1, 0.0f);
-    read_date_loop ("Order date (YYYY-MM-DD): ", date, sizeof date);
+    read_date_loop ("Order date (DD-MM-YY): ", date, sizeof date);
 
     FILE *f = fopen(CSV_FILE, "a");
     if (!f) { perror(CSV_FILE); return; }
@@ -349,7 +346,7 @@ static void updateOrderByID(void) {
             printf("Current: %d, %s, %s, %d, %.2f, %s\n",
                    orderid, customer, product, qty, price, date);
 
-            /* Optional edits (blank = keep). If given, validate type/range. */
+            //optional edits
             if (read_optional_text ("New customer name (leave blank to keep): ", customer, sizeof customer)) { /* ok */ }
             if (read_optional_text ("New product name  (leave blank to keep): ", product,  sizeof product))  { /* ok */ }
 
@@ -365,7 +362,7 @@ static void updateOrderByID(void) {
                 else price = new_price;
             }
 
-            if (read_optional_date("New order date YYYY-MM-DD (leave blank to keep): ", date, sizeof date)) { /* ok */ }
+            if (read_optional_date("New order date DD-MM-YYYY (leave blank to keep): ", date, sizeof date)) { /* ok */ }
 
             fprintf(out, "%d,%s,%s,%d,%.2f,%s\n",
                     orderid, customer, product, qty, price, date);
@@ -389,7 +386,136 @@ static void updateOrderByID(void) {
     printf("Order %d updated successfully.\n", target);
 }
 
-/* ======================= Menus ======================= */
+/* ======================= Delete by OrderID (choose line + confirm) ======================= */
+static void deleteByOrderID(void) {
+    FILE *in = fopen(CSV_FILE, "r");
+    if (!in) { perror(CSV_FILE); return; }
+
+    int target;
+    read_int_loop("Enter Order ID to delete: ", &target, 0, 0);
+
+    /* First pass: collect matches so user can choose which one to delete */
+    char line[512];
+    int has_header = 0;
+    int matches = 0;
+
+    /* Peek header */
+    long pos = ftell(in);
+    if (fgets(line, sizeof line, in)) {
+        if (!line_starts_with_digit(line)) has_header = 1;
+        else fseek(in, pos, SEEK_SET);
+    } else { fclose(in); printf("No data.\n"); return; }
+
+    /* We’ll store a small snapshot of matches for display */
+    typedef struct {
+        int orderid, qty;
+        float price;
+        char customer[50], product[50], date[20];
+    } Row;
+    Row found[1024];
+
+    while (fgets(line, sizeof line, in)) {
+        int orderid, qty; float price;
+        char customer[50], product[50], date[20];
+        if (!parse_csv_line(line, &orderid, customer, product, &qty, &price, date)) continue;
+        if (orderid == target) {
+            if (matches < (int)(sizeof found / sizeof found[0])) {
+                found[matches].orderid = orderid;
+                found[matches].qty = qty;
+                found[matches].price = price;
+                strncpy(found[matches].customer, customer, sizeof found[matches].customer - 1);
+                found[matches].customer[sizeof found[matches].customer - 1] = '\0';
+                strncpy(found[matches].product, product, sizeof found[matches].product - 1);
+                found[matches].product[sizeof found[matches].product - 1] = '\0';
+                strncpy(found[matches].date, date, sizeof found[matches].date - 1);
+                found[matches].date[sizeof found[matches].date - 1] = '\0';
+            }
+            matches++;
+        }
+    }
+
+    if (matches == 0) {
+        fclose(in);
+        printf("OrderID %d not found. Nothing to delete.\n", target);
+        return;
+    }
+
+    printf("\nFound %d record(s) with OrderID %d:\n", matches, target);
+    for (int i = 0; i < matches && i < 1024; ++i) {
+        printf("  [%d] %d, %s, %s, %d, %.2f, %s\n",
+               i + 1,
+               found[i].orderid, found[i].customer, found[i].product,
+               found[i].qty, found[i].price, found[i].date);
+    }
+    if (matches > 1024) {
+        printf("  ...and %d more (only first 1024 shown)\n", matches - 1024);
+    }
+
+    /* Choose which matching line to delete (1..matches) */
+    int choice_index = 1;
+    if (matches > 1) {
+        for (;;) {
+            if (read_int_loop("Choose which one to delete [1..N]: ", &choice_index, 1, 1)) {
+                if (choice_index >= 1 && choice_index <= matches) break;
+            }
+            printf("Please choose a number between 1 and %d.\n", matches);
+        }
+    }
+
+    /* Confirm deletion */
+    char confirm[16];
+    read_line("Confirm delete? (Y/N): ", confirm, sizeof confirm);
+    if (!(confirm[0] == 'Y' || confirm[0] == 'y')) {
+        fclose(in);
+        printf("Canceled. No changes made.\n");
+        return;
+    }
+
+    /* Second pass: write everything except the selected occurrence of that OrderID */
+    FILE *out = fopen("orders.tmp", "w");
+    if (!out) { perror("orders.tmp"); fclose(in); return; }
+
+    rewind(in);
+    int current_match_idx = 0;
+
+    /* Copy header if present */
+    if (has_header && fgets(line, sizeof line, in)) {
+        fputs(line, out);
+    } else {
+        /* If no header was present, ensure we start at beginning */
+        if (!has_header) rewind(in);
+    }
+
+    while (fgets(line, sizeof line, in)) {
+        int orderid, qty; float price;
+        char customer[50], product[50], date[20];
+
+        if (!parse_csv_line(line, &orderid, customer, product, &qty, &price, date)) {
+            fputs(line, out);  /* keep unparsable lines */
+            continue;
+        }
+
+        if (orderid == target) {
+            current_match_idx++;
+            if (current_match_idx == choice_index) {
+                /* Skip writing this one = delete */
+                continue;
+            }
+        }
+        fputs(line, out);
+    }
+
+    fclose(in);
+    if (fclose(out) != 0) { perror("close tmp"); remove("orders.tmp"); return; }
+
+    if (remove(CSV_FILE) != 0) { perror("remove original"); remove("orders.tmp"); return; }
+    if (rename("orders.tmp", CSV_FILE) != 0) { perror("rename tmp->csv"); return; }
+
+    printf("Deleted record [%d] for OrderID %d successfully.\n", choice_index, target);
+}
+
+
+/* ======================= Menu ======================= */
 
 static int read_menu_choice(int minc, int maxc) {
     char buf[64];
@@ -414,7 +540,7 @@ static void searchMenu(void) {
     }
 }
 
-/* ======================= Main ======================= */
+//main
 
 int main(void) {
     ensure_csv_header();
@@ -424,14 +550,16 @@ int main(void) {
         printf("[1] Add order\n");
         printf("[2] Search\n");
         printf("[3] Update by ID\n");
-        printf("[4] Exit\n");
+        printf("[4] Delete by ID\n");
+        printf("[5] Exit\n");
         int choice = read_menu_choice(1, 4);
 
         switch (choice) {
             case 1: Addcsv(); break;
             case 2: searchMenu(); break;
             case 3: updateOrderByID(); break;
-            case 4: printf("Bye!\n"); return 0;
+            case 4: deleteByOrderID(); break;
+            case 5: printf("End of program\n"); return 0;
         }
     }
 }
