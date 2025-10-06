@@ -559,7 +559,7 @@ int main(void) {
             case 2: searchMenu(); break;
             case 3: updateOrderByID(); break;
             case 4: deleteByOrderID(); break;
-            case 5: printf("End of program\n"); return;
+            case 5: printf("End of program\n"); return 0;
         }
     }
 }
