@@ -11,9 +11,9 @@ static void chomp(char *s) {
     size_t n = strlen(s);
     while (n && (s[n-1] == '\n' || s[n-1] == '\r')) s[--n] = '\0';
 }
-
+// keep CSV simple
 static void sanitize_commas(char *s) {
-    for (char *p = s; *p; ++p) if (*p == ',') *p = ' ';  // keep CSV simple
+    for (char *p = s; *p; ++p) if (*p == ',') *p = ' ';  
 }
 
 static void lowercase(char *s) {
@@ -47,7 +47,7 @@ static int is_valid_date_str(const char *s) {
     return 1;
 }
 
-/* Safe input (loops until valid)  */
+// Safe input (loops until valid)
 
 static void read_line(const char *prompt, char *buf, size_t cap) {
     for (;;) {
@@ -78,7 +78,7 @@ static int try_parse_float(const char *s, float *out) {
     return 1;
 }
 
-/* loops until a valid integer (with optional min constraint) */
+//loops until a valid integer
 static int read_int_loop(const char *prompt, int *out, int enforce_min, int minval) {
     char buf[128];
     for (;;) {
@@ -91,7 +91,7 @@ static int read_int_loop(const char *prompt, int *out, int enforce_min, int minv
     }
 }
 
-/* loops until a valid float (with optional min constraint) */
+//loops until a valid float
 static int read_float_loop(const char *prompt, float *out, int enforce_min, float minval) {
     char buf[128];
     for (;;) {
@@ -104,7 +104,7 @@ static int read_float_loop(const char *prompt, float *out, int enforce_min, floa
     }
 }
 
-/* loops until non-empty text; disallows commas */
+//loops until non-empty text; disallows commas
 static void read_text_loop(const char *prompt, char *out, size_t cap) {
     for (;;) {
         read_line(prompt, out, cap);
@@ -160,7 +160,7 @@ static int read_optional_date(const char *prompt, char *dst, size_t cap) {
     return 1;
 }
 
-/* ======================= CSV file helpers ======================= */
+/* CSV file helpers  */
 
 static void ensure_csv_header(void) {
     FILE *f = fopen(CSV_FILE, "r");
@@ -204,7 +204,7 @@ static int orderIDExists(int target) {
     return 0;
 }
 
-/* ======================= Features ======================= */
+/* Features */
 
 static void Addcsv(void) {
     ensure_csv_header();
@@ -386,7 +386,7 @@ static void updateOrderByID(void) {
     printf("Order %d updated successfully.\n", target);
 }
 
-/* ======================= Delete by OrderID (choose line + confirm) ======================= */
+
 static void deleteByOrderID(void) {
     FILE *in = fopen(CSV_FILE, "r");
     if (!in) { perror(CSV_FILE); return; }
@@ -394,19 +394,19 @@ static void deleteByOrderID(void) {
     int target;
     read_int_loop("Enter Order ID to delete: ", &target, 0, 0);
 
-    /* First pass: collect matches so user can choose which one to delete */
+    // First pass: collect matches so user can choose which one to delete 
     char line[512];
     int has_header = 0;
     int matches = 0;
 
-    /* Peek header */
+    //Peek header
     long pos = ftell(in);
     if (fgets(line, sizeof line, in)) {
         if (!line_starts_with_digit(line)) has_header = 1;
         else fseek(in, pos, SEEK_SET);
     } else { fclose(in); printf("No data.\n"); return; }
 
-    /* We’ll store a small snapshot of matches for display */
+    // We’ll store a small snapshot of matches for display 
     typedef struct {
         int orderid, qty;
         float price;
@@ -451,7 +451,7 @@ static void deleteByOrderID(void) {
         printf("  ...and %d more (only first 1024 shown)\n", matches - 1024);
     }
 
-    /* Choose which matching line to delete (1..matches) */
+    // Choose which matching line to delete
     int choice_index = 1;
     if (matches > 1) {
         for (;;) {
@@ -462,7 +462,7 @@ static void deleteByOrderID(void) {
         }
     }
 
-    /* Confirm deletion */
+    // Confirm deletion 
     char confirm[16];
     read_line("Confirm delete? (Y/N): ", confirm, sizeof confirm);
     if (!(confirm[0] == 'Y' || confirm[0] == 'y')) {
@@ -515,7 +515,7 @@ static void deleteByOrderID(void) {
 }
 
 
-/* ======================= Menu ======================= */
+/*  Menu  */
 
 static int read_menu_choice(int minc, int maxc) {
     char buf[64];
@@ -552,14 +552,14 @@ int main(void) {
         printf("[3] Update by ID\n");
         printf("[4] Delete by ID\n");
         printf("[5] Exit\n");
-        int choice = read_menu_choice(1, 4);
+        int choice = read_menu_choice(1, 5);
 
         switch (choice) {
             case 1: Addcsv(); break;
             case 2: searchMenu(); break;
             case 3: updateOrderByID(); break;
             case 4: deleteByOrderID(); break;
-            case 5: printf("End of program\n"); return 0;
+            case 5: printf("End of program\n"); return;
         }
     }
 }
