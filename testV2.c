@@ -3,6 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <limits.h>
+#include <errno.h>
 
 #define CSV_FILE "orders.csv"
 
@@ -57,13 +58,23 @@ static void read_line(const char *prompt, char *buf, size_t cap) {
         return;
     }
 }
+//parse int prevent overflow
+int try_parse_int(const char* s, int* out) {
+    if (!s || !*s || !out) return 0;
 
-static int try_parse_int(const char *s, int *out) {
-    if (!s || !*s) return 0;
+    // Disallow leading whitespace to match the test’s stricter behavior
+    if (isspace((unsigned char)*s)) return 0;
+
+    errno = 0;
     char *end = NULL;
-    long v = strtol(s, &end, 10);
-    if (end == s || *end != '\0') return 0;
-    if (v < INT_MIN || v > INT_MAX) return 0;
+    long v = strtol(s, &end, 10);   // base 10 only
+
+    // must consume the whole string; no trailing chars or spaces
+    if (s == end || *end != '\0') return 0;
+
+    // overflow/underflow
+    if (errno == ERANGE || v < INT_MIN || v > INT_MAX) return 0;
+
     *out = (int)v;
     return 1;
 }
@@ -225,7 +236,7 @@ static void Addcsv(void) {
     read_text_loop("Product name: ",  product,  sizeof product);
     read_int_loop ("Quantity (>=0): ", &qty, 1, 0);
     read_float_loop("Price (>=0): ", &price, 1, 0.0f);
-    read_date_loop ("Order date (DD-MM-YY): ", date, sizeof date);
+    read_date_loop ("Order date (DD-MM-YYYY): ", date, sizeof date);
 
     FILE *f = fopen(CSV_FILE, "a");
     if (!f) { perror(CSV_FILE); return; }
